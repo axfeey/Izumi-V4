@@ -29,7 +29,6 @@ const {
     useMultiFileAuthState,
     fetchLatestBaileysVersion
 } = require("@whiskeysockets/baileys");
-const { makeInMemoryStore } = require("@whiskeysockets/baileys");
 const qrcode = require("qrcode-terminal");
 const figlet = require("figlet");
 const fs = require("fs");
@@ -63,7 +62,6 @@ function title() {
 }
 
 const status = new Spinner(chalk.cyan(` Booting WhatsApp Bot`));
-const store = makeInMemoryStore({ logger: logg({ level: 'fatal', stream: 'store' }) });
 
 const connectToWhatsApp = async () => {
 	const { state, saveCreds } = await useMultiFileAuthState('session');
@@ -78,7 +76,6 @@ const connectToWhatsApp = async () => {
 	});
 	
 	title();
-	store.bind(conn.ev);
 	
 	conn.multi = true;
 	conn.nopref = true;
@@ -89,7 +86,7 @@ const connectToWhatsApp = async () => {
 		var msg = m.messages[0];
 		msg = serialize(conn, msg);
 		msg.isBaileys = msg.key.id.startsWith('BAE5') || msg.key.id.startsWith('3EB0');
-		require('./message/msg')(conn, msg, m, setting, store);
+		require('./message/msg')(conn, msg, m, setting, {});
 	});
 
 	conn.ev.on('connection.update', (update) => {
@@ -99,6 +96,7 @@ const connectToWhatsApp = async () => {
 			console.log(chalk.cyan("Scan the QR code with WhatsApp Linked Devices!"));
 		}
 		if (connection === 'close') {
+			status.stop();
 			const statusCode = lastDisconnect?.error?.output?.statusCode;
 			const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 			
