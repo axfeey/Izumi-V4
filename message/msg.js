@@ -154,7 +154,6 @@ moment.tz.setDefault("Asia/Jakarta").locale("id");
 module.exports = async(conn, msg, m, setting, store) => {
 	try {
 		let { ownerNumber, ownerName, botName, gamewaktu, limitCount } = setting || {};
-		let { allmenu } = require('./help');
 		const { type, quotedMsg, mentioned, now, fromMe } = msg;
 		const jam = moment.tz('asia/jakarta').format('HH:mm:ss');
 		let dt = moment(Date.now()).tz('Asia/Jakarta').locale('id').format('a');
@@ -164,7 +163,7 @@ module.exports = async(conn, msg, m, setting, store) => {
 		const chats = (type === 'conversation' && msg.message.conversation) ? msg.message.conversation : (type == 'imageMessage') && msg.message.imageMessage.caption ? msg.message.imageMessage.caption : (type == 'documentMessage') && msg.message.documentMessage.caption ? msg.message.documentMessage.caption : (type == 'videoMessage') && msg.message.videoMessage.caption ? msg.message.videoMessage.caption : (type == 'extendedTextMessage') && msg.message.extendedTextMessage.text ? msg.message.extendedTextMessage.text : (type == 'buttonsResponseMessage' && msg.message.buttonsResponseMessage.selectedButtonId) ? msg.message.buttonsResponseMessage.selectedButtonId : (type == 'templateButtonReplyMessage') && msg.message.templateButtonReplyMessage.selectedId ? msg.message.templateButtonReplyMessage.selectedId : '';
 		const toJSON = j => JSON.stringify(j, null, '\t');
 		
-		var prefix = /^[°•π÷×¶∆£¢€¥®™✓_=|~!?#$%^&.+-,\/\\©^]/.test(chats) ? chats.match(/^[°•π÷×¶∆£¢€¥®™✓_=|~!?#$%^&.+-,\/\\©^]/gi)[0] : '';
+		var prefix = /^[°•π÷×¶∆£¢€¥®™✓_=|~!?#$%^&.+-,\/\\©^]/.test(chats) ? chats.match(/^[°•π÷×¶∆£¢€¥®™✓_=|~!?#$%^&.+-,\/\\©^]/gi)[0] : '.';
 		
 		const more = String.fromCharCode(8206);
 		const readmore = more.repeat(4001);
@@ -189,51 +188,6 @@ module.exports = async(conn, msg, m, setting, store) => {
 		const isPremium = isOwner ? true : _prem.checkPremiumUser(sender, premium);
 		const isAntiLink = isGroup ? antilink.includes(from) : false;
 		const isAntiWame = isGroup ? antiwame.includes(from) : false;
-
-		const gcounti = setting?.gcount || { prem: 100, user: 20 };
-		const gcount = isPremium ? gcounti.prem : gcounti.user;
-
-		const mentionByTag = type == "extendedTextMessage" && msg.message.extendedTextMessage.contextInfo != null ? msg.message.extendedTextMessage.contextInfo.mentionedJid : [];
-		const mentionByReply = type == "extendedTextMessage" && msg.message.extendedTextMessage.contextInfo != null ? msg.message.extendedTextMessage.contextInfo.participant || "" : "";
-		const mention = typeof(mentionByTag) == 'string' ? [mentionByTag] : mentionByTag;
-		if (mention != undefined && mentionByReply) mention.push(mentionByReply);
-		const mentionUser = mention != undefined ? mention.filter(n => n) : [];
-		
-		async function downloadAndSaveMediaMessage (type_file, path_file) {
-			if (type_file === 'image') {
-				var stream = await downloadContentFromMessage(msg.message.imageMessage || msg.message.extendedTextMessage?.contextInfo.quotedMessage.imageMessage, 'image');
-				let buffer = Buffer.from([]);
-				for await(const chunk of stream) {
-					buffer = Buffer.concat([buffer, chunk]);
-				}
-				fs.writeFileSync(path_file, buffer);
-				return path_file;
-			} else if (type_file === 'video') {
-				var stream = await downloadContentFromMessage(msg.message.videoMessage || msg.message.extendedTextMessage?.contextInfo.quotedMessage.videoMessage, 'video');
-				let buffer = Buffer.from([]);
-				for await(const chunk of stream) {
-					buffer = Buffer.concat([buffer, chunk]);
-				}
-				fs.writeFileSync(path_file, buffer);
-				return path_file;
-			} else if (type_file === 'sticker') {
-				var stream = await downloadContentFromMessage(msg.message.stickerMessage || msg.message.extendedTextMessage?.contextInfo.quotedMessage.stickerMessage, 'sticker');
-				let buffer = Buffer.from([]);
-				for await(const chunk of stream) {
-					buffer = Buffer.concat([buffer, chunk]);
-				}
-				fs.writeFileSync(path_file, buffer);
-				return path_file;
-			} else if (type_file === 'audio') {
-				var stream = await downloadContentFromMessage(msg.message.audioMessage || msg.message.extendedTextMessage?.contextInfo.quotedMessage.audioMessage, 'audio');
-				let buffer = Buffer.from([]);
-				for await(const chunk of stream) {
-					buffer = Buffer.concat([buffer, chunk]);
-				}
-				fs.writeFileSync(path_file, buffer);
-				return path_file;
-			}
-		}
 
 		const reply = (teks) => {
 			conn.sendMessage(from, { text: teks }, { quoted: msg });
@@ -261,14 +215,6 @@ module.exports = async(conn, msg, m, setting, store) => {
 			try { fs.writeFileSync('./database/user.json', JSON.stringify(pendaftar, null, 2)); } catch(e) {}
 		}
 
-		// Premium Check
-		try { _prem.expiredCheck(conn, premium); } catch(e) {}
-		
-		// Tictactoe
-		try {
-			if (isTicTacToe(from, tictactoe)) tictac(chats, prefix, tictactoe, from, sender, reply, mentions, addBalance, balance);
-		} catch(e) {}
-
 		// Logs
 		if (isCmd) {
 			console.log('->[\x1b[1;32mCMD\x1b[1;37m]', color(moment(msg.messageTimestamp * 1000).format('DD/MM/YYYY HH:mm:ss'), 'yellow'), color(`${command}`), 'from', color(pushname || sender));
@@ -283,23 +229,92 @@ module.exports = async(conn, msg, m, setting, store) => {
 
 		switch(command) {
 			case prefix+'allmenu':
-			case prefix+'menu':
-			case 'menu':
-				var teks = `Hai kak ${pushname || 'User'}
-Saya ${namabot}, bot WhatsApp Multi-Device.
+			case prefix+'help':
+			case prefix+'list':
+				var fullMenuText = `── 「 *${namabot} ALL MENU* 」 ──
 
-*── 「 MENU 」 ──*
+*👤 USER INFO*
+➤ *Name:* ${pushname || 'User'}
+➤ *Status:* ${isPremium ? 'Premium' : 'Free User'}
+➤ *Prefix:* [ ${prefix} ]
+
+*🛠️ MAIN MENU*
 ➤ ${prefix}ping
-➤ ${prefix}donasi
+➤ ${prefix}menu
+➤ ${prefix}allmenu
 ➤ ${prefix}rules
+➤ ${prefix}donasi
+➤ ${prefix}sewabot
 ➤ ${prefix}daftarprem
+➤ ${prefix}owner
+➤ ${prefix}sc
+
+*👥 GROUP MENU*
+➤ ${prefix}antilink [enable/disable]
+➤ ${prefix}antiwame [enable/disable]
+➤ ${prefix}group [open/close]
+➤ ${prefix}promote [@tag]
+➤ ${prefix}demote [@tag]
+➤ ${prefix}kick [@tag]
+➤ ${prefix}add [number]
+➤ ${prefix}linkgroup
+➤ ${prefix}tagall [teks]
+➤ ${prefix}hidetag [teks]
+
+*🎨 STICKER & MEDIA*
+➤ ${prefix}sticker / .s (Reply image/video)
+➤ ${prefix}toimg (Reply sticker)
+➤ ${prefix}tomp4 (Reply sticker gif)
+➤ ${prefix}tourl (Reply media)
+
+*📥 DOWNLOAD MENU*
+➤ ${prefix}tiktok [link]
+➤ ${prefix}ig / .igdl [link]
+➤ ${prefix}ytmp3 [link]
+➤ ${prefix}ytmp4 [link]
+➤ ${prefix}play [query]
+➤ ${prefix}mediafire [link]
+
+*🎮 GAME MENU*
+➤ ${prefix}tictactoe
+➤ ${prefix}tebakgambar
+➤ ${prefix}tebakkata
+➤ ${prefix}tekateki
+➤ ${prefix}tebakkimia
+➤ ${prefix}kuis
+
+*🛒 STORE & TOPUP*
 ➤ ${prefix}listff
 ➤ ${prefix}rekber
-➤ ${prefix}sewabot
-➤ ${prefix}sc
+➤ ${prefix}formatid
+
+*⚙️ OWNER MENU*
+➤ ${prefix}setppbot (Reply image)
+➤ ${prefix}broadcast [teks]
+➤ ${prefix}join [link group]
+➤ ${prefix}leave
+➤ ${prefix}block [@tag]
+➤ ${prefix}unblock [@tag]
+➤ > (Eval)
+➤ $ (Exec)
+
+${note}`;
+				reply(fullMenuText);
+				break;
+
+			case prefix+'menu':
+			case 'menu':
+				var teks = `Hai kak ${pushname || 'User'} 👋
+Saya ${namabot}, bot WhatsApp Multi-Device.
+
+Ketik *${prefix}allmenu* atau *${prefix}list* untuk melihat semua menu dan fitur yang tersedia!
 
 Note : ${note}`;
 				reply(teks);
+				break;
+
+			case prefix+'owner':
+				reply(`*Owner Number:* https://wa.me/${numown.replace(/[^0-9]/g, '')}`);
 				break;
 
 			case prefix+'delete':
@@ -317,7 +332,7 @@ Note : ${note}`;
 ├─ ❏ PULSA : ${pulsa}
 ├─ ❏ INSTAGRAM : https://www.instagram.com/${insta}
 
-Donasi Untuk Upgrade Ke Fitur Premium
+Donasi Untuk Perkembangan Bot
 Note : Donasi Seikhlasnya`;
 				reply(teks);
 				break;
@@ -330,7 +345,6 @@ _Yakin kamu mau daftar ke premium?_
 *Keuntungan :*
 - Limit Unlimited
 - Akses Fitur Premium
-- Tidak Ada Kata ~Limit Menurun~
 
 *LIST DAFTAR PREMIUM*
 - Rp. 2.000 - 7 Hari
@@ -395,11 +409,6 @@ Prefix: Multi Prefix (${prefix})`;
 30 Hari = ${tigapuluhhari}
 1 Tahun = ${setahun}
 Permanen = ${permanen}
-
-*Keuntungan :*
-- Bot Masuk Sesuai Waktu Sewa
-- Gratis Premium 7 Hari
-- Menyapa Member Join Ke Group
 
 *_Pembayaran Melalui Qris : ${qris}_*
 *Hubungi Owner : ${nomor}*`;
