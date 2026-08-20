@@ -86,7 +86,11 @@ const connectToWhatsApp = async () => {
 		var msg = m.messages[0];
 		msg = serialize(conn, msg);
 		msg.isBaileys = msg.key.id.startsWith('BAE5') || msg.key.id.startsWith('3EB0');
-		require('./message/msg')(conn, msg, m, setting, {});
+		try {
+			require('./message/msg')(conn, msg, m, setting, {});
+		} catch (err) {
+			console.log(err);
+		}
 	});
 
 	conn.ev.on('connection.update', (update) => {
@@ -117,20 +121,20 @@ const connectToWhatsApp = async () => {
 		try {
 			let metadata = await conn.groupMetadata(data.id);
 			for (let i of data.participants) {
-				let pp_user;
+				let pp_user = 'https://telegra.ph/file/24fa902ead26340f3df2c.png';
 				try {
 					pp_user = await conn.profilePictureUrl(i, 'image');
 				} catch {
-					pp_user = 'https://i0.wp.com/www.gambarunik.id/wp-content/uploads/2019/06/Top-Gambar-Foto-Profil-Kosong-Lucu-Tergokil-.jpg';
+					// Fallback to default placeholder image
 				}
 				if (data.action === "add") {
-					conn.sendMessage(data.id, { 
+					await conn.sendMessage(data.id, { 
 						image: { url: pp_user }, 
 						caption: `Hallo @${i.split("@")[0]}\nSelamat Datang Di Grup ${metadata.subject}\n\nIntro Dulu Yuk Kak\n\n\n📛 Nama : \n🔞 Umur :\n🏙️ Askot :\n👫 Gender :\n\nSemoga Kamu Senang Berada Disini Serta Jangan Lupa Untuk Membaca Dan Mematuhi Rules Yang Ada`, 
 						mentions: [i] 
 					});
 				} else if (data.action === "remove") {
-					conn.sendMessage(data.id, { 
+					await conn.sendMessage(data.id, { 
 						image: { url: pp_user }, 
 						caption: `Goodbye @${i.split("@")[0]}\n\nTetap Putus Asa Jangan Semangat Dan Jadilah Beban Keluarga 🤙🗿`, 
 						mentions: [i] 
