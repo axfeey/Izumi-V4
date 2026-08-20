@@ -38,8 +38,6 @@ const fs = require("fs");
 const moment = require('moment');
 const chalk = require('chalk');
 const logg = require('pino');
-const clui = require('clui');
-const { Spinner } = clui;
 const { serialize } = require("./lib/myfunc");
 const { color, mylog, infolog } = require("./lib/color");
 const time = moment(new Date()).format('HH:mm:ss DD/MM/YYYY');
@@ -56,33 +54,18 @@ try {
 let session = `./${setting.sessionName || 'session'}.json`;
 const { state, saveState } = useSingleFileAuthState(session);
 
-function title() {
-	console.clear();
-	console.log(chalk.bold.red(figlet.textSync('Izumi-Bot', {
-		font: 'Standard',
-		horizontalLayout: 'default',
-		verticalLayout: 'default',
-		width: 80,
-		whitespaceBreak: false
-	})));
-	console.log(chalk.yellow(`\n                        ${chalk.green('[ Powered By Christian ]')}\n\n${chalk.yellow('Izumi-Bot')} : ${chalk.white('WhatsApp Bot Multi Device')}\n${chalk.yellow('Follow Insta Christian')} : ${chalk.white('@chris.tianid')}\n${chalk.yellow('Message Me On WhatsApp')} : ${chalk.white('+62 859-2116-5857')}\n${chalk.yellow('Rest Api')} : ${chalk.white('https://christian-id-api.herokuapp.com/docs')}\n${chalk.yellow('Youtube')} : ${chalk.white('https://youtube.com/channel/UCbetUssizXWLgZdDVEFp8Sg')}\n`));
-}
-
-const status = new Spinner(chalk.cyan(` Booting WhatsApp Bot`));
-const starting = new Spinner(chalk.cyan(` Preparing After Connect`));
-const reconnect = new Spinner(chalk.redBright(` Reconnecting WhatsApp Bot`));
-
 const store = makeInMemoryStore({ logger: logg().child({ level: 'fatal', stream: 'store' }) });
 
 const connectToWhatsApp = async () => {
+	console.log(chalk.green("Connecting to WhatsApp... Please wait for QR Code!"));
+
 	const conn = makeWASocket({
 		printQRInTerminal: true,
-		logger: logg({ level: 'fatal' }),
+		logger: logg({ level: 'silent' }),
 		auth: state,
-		browser: ["Izumi-Multi-Device", "Safari", "3.0"]
+		browser: ["Izumi-Bot", "Safari", "3.0"]
 	});
 	
-	title();
 	store.bind(conn.ev);
 	
 	conn.multi = true;
@@ -99,16 +82,19 @@ const connectToWhatsApp = async () => {
 
 	conn.ev.on('connection.update', (update) => {
 		const { connection, lastDisconnect, qr } = update;
+		if (qr) {
+			console.log(chalk.yellow("QR Code Generated! Scan now with WhatsApp Linked Devices:"));
+		}
+		if (connection === 'open') {
+			console.log(chalk.greenBright('Connected to WhatsApp successfully! ✓'));
+		}
 		if (connection === 'close') {
-			status.stop();
-			reconnect.stop();
-			starting.stop();
 			const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
 			console.log(mylog('Connection closed. Reconnecting: ' + shouldReconnect));
 			if (shouldReconnect) {
 				connectToWhatsApp();
 			} else {
-				console.log(mylog('Wa web terlogout...'));
+				console.log(mylog('Wa web terlogout... Scan QR again.'));
 			}
 		}
 	});
@@ -140,5 +126,4 @@ const connectToWhatsApp = async () => {
 	return conn;
 };
 
-connectToWhatsApp()
-.catch(err => console.log(err));
+connectToWhatsApp().catch(err => console.log(err));
