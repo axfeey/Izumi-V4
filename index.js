@@ -25,47 +25,61 @@ Terimakasih*/
 "use strict";
 const {
 	default: makeWASocket,
-	BufferJSON,
-	initInMemoryKeyStore,
 	DisconnectReason,
-	AnyMessageContent,
 	makeInMemoryStore,
-	useSingleFileAuthState,
-	delay
-} = require("@adiwajshing/baileys");
+	useMultiFileAuthState,
+	fetchLatestBaileysVersion
+} = require("@whiskeysockets/baileys");
 const figlet = require("figlet");
 const fs = require("fs");
 const moment = require('moment');
 const chalk = require('chalk');
 const logg = require('pino');
+const clui = require('clui');
+const { Spinner } = clui;
 const { serialize } = require("./lib/myfunc");
 const { color, mylog, infolog } = require("./lib/color");
 const time = moment(new Date()).format('HH:mm:ss DD/MM/YYYY');
 
 let setting = { sessionName: 'session' };
 try {
-    if (fs.existsSync('./config.json')) {
-        setting = JSON.parse(fs.readFileSync('./config.json'));
-    }
+	if (fs.existsSync('./config.json')) {
+		setting = JSON.parse(fs.readFileSync('./config.json'));
+	}
 } catch (e) {
-    console.log(e);
+	console.log(e);
 }
 
-let session = `./${setting.sessionName || 'session'}.json`;
-const { state, saveState } = useSingleFileAuthState(session);
+function title() {
+	console.log(chalk.bold.red(figlet.textSync('Izumi-Bot', {
+		font: 'Standard',
+		horizontalLayout: 'default',
+		verticalLayout: 'default',
+		width: 80,
+		whitespaceBreak: false
+	})));
+	console.log(chalk.yellow(`\n                        ${chalk.green('[ Powered By Christian ]')}\n\n${chalk.yellow('Izumi-Bot')} : ${chalk.white('WhatsApp Bot Multi Device')}\n${chalk.yellow('Follow Insta Christian')} : ${chalk.white('@chris.tianid')}\n${chalk.yellow('Message Me On WhatsApp')} : ${chalk.white('+62 859-2116-5857')}\n${chalk.yellow('Rest Api')} : ${chalk.white('https://christian-id-api.herokuapp.com/docs')}\n${chalk.yellow('Youtube')} : ${chalk.white('https://youtube.com/channel/UCbetUssizXWLgZdDVEFp8Sg')}\n`));
+}
+
+const status = new Spinner(chalk.cyan(` Booting WhatsApp Bot`));
+const starting = new Spinner(chalk.cyan(` Preparing After Connect`));
+const reconnect = new Spinner(chalk.redBright(` Reconnecting WhatsApp Bot`));
 
 const store = makeInMemoryStore({ logger: logg().child({ level: 'fatal', stream: 'store' }) });
 
 const connectToWhatsApp = async () => {
-	console.log(chalk.green("Connecting to WhatsApp... Please wait for QR Code!"));
+	const { state, saveCreds } = await useMultiFileAuthState('session');
+	const { version } = await fetchLatestBaileysVersion();
 
 	const conn = makeWASocket({
+		version,
 		printQRInTerminal: true,
-		logger: logg({ level: 'silent' }),
+		logger: logg({ level: 'fatal' }),
 		auth: state,
-		browser: ["Izumi-Bot", "Safari", "3.0"]
+		browser: ["Izumi-Multi-Device", "Safari", "3.0"]
 	});
 	
+	title();
 	store.bind(conn.ev);
 	
 	conn.multi = true;
@@ -83,37 +97,50 @@ const connectToWhatsApp = async () => {
 	conn.ev.on('connection.update', (update) => {
 		const { connection, lastDisconnect, qr } = update;
 		if (qr) {
-			console.log(chalk.yellow("QR Code Generated! Scan now with WhatsApp Linked Devices:"));
-		}
-		if (connection === 'open') {
-			console.log(chalk.greenBright('Connected to WhatsApp successfully! ✓'));
+			console.log(chalk.cyan("Scan the QR code with WhatsApp Linked Devices!"));
 		}
 		if (connection === 'close') {
-			const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
-			console.log(mylog('Connection closed. Reconnecting: ' + shouldReconnect));
+			status.stop();
+			reconnect.stop();
+			starting.stop();
+			const statusCode = lastDisconnect?.error?.output?.statusCode;
+			const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+			
+			console.log(mylog('Connection closed. Status: ' + statusCode));
 			if (shouldReconnect) {
 				connectToWhatsApp();
 			} else {
-				console.log(mylog('Wa web terlogout... Scan QR again.'));
+				console.log(mylog('Wa web terlogout...'));
 			}
+		} else if (connection === 'open') {
+			console.log(mylog('Server Ready ✓'));
 		}
 	});
 
-	conn.ev.on('creds.update', saveState);
+	conn.ev.on('creds.update', saveCreds);
 	
 	conn.ev.on('group-participants.update', async (data) => {
 		try {
 			let metadata = await conn.groupMetadata(data.id);
 			for (let i of data.participants) {
+				let pp_user;
 				try {
-					var pp_user = await conn.profilePictureUrl(i, 'image');
+					pp_user = await conn.profilePictureUrl(i, 'image');
 				} catch {
-					var pp_user = 'https://i0.wp.com/www.gambarunik.id/wp-content/uploads/2019/06/Top-Gambar-Foto-Profil-Kosong-Lucu-Tergokil-.jpg';
+					pp_user = 'https://i0.wp.com/www.gambarunik.id/wp-content/uploads/2019/06/Top-Gambar-Foto-Profil-Kosong-Lucu-Tergokil-.jpg';
 				}
-				if (data.action == "add") {
-					conn.sendMessage(data.id, { image: { url: pp_user }, caption: `Hallo @${i.split("@")[0]}\nSelamat Datang Di Grup ${metadata.subject}\n\nIntro Dulu Yuk Kak\n\n\n📛 Nama : \n🔞 Umur :\n🏙️ Askot :\n👫 Gender :\n\nSemoga Kamu Senang Berada Disini Serta Jangan Lupa Untuk Membaca Dan Mematuhi Rules Yang Ada`, mentions: [i] });
-				} else if (data.action == "remove") {
-					conn.sendMessage(data.id, { image: { url: pp_user }, caption: `Goodbye @${i.split("@")[0]}\n\nTetap Putus Asa Jangan Semangat Dan Jadilah Beban Keluarga 🤙🗿`, mentions: [i] });
+				if (data.action === "add") {
+					conn.sendMessage(data.id, { 
+						image: { url: pp_user }, 
+						caption: `Hallo @${i.split("@")[0]}\nSelamat Datang Di Grup ${metadata.subject}\n\nIntro Dulu Yuk Kak\n\n\n📛 Nama : \n🔞 Umur :\n🏙️ Askot :\n👫 Gender :\n\nSemoga Kamu Senang Berada Disini Serta Jangan Lupa Untuk Membaca Dan Mematuhi Rules Yang Ada`, 
+						mentions: [i] 
+					});
+				} else if (data.action === "remove") {
+					conn.sendMessage(data.id, { 
+						image: { url: pp_user }, 
+						caption: `Goodbye @${i.split("@")[0]}\n\nTetap Putus Asa Jangan Semangat Dan Jadilah Beban Keluarga 🤙🗿`, 
+						mentions: [i] 
+					});
 				}
 			}
 		} catch (e) {
